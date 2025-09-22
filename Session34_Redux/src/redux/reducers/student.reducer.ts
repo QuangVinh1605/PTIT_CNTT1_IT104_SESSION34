@@ -27,19 +27,17 @@ const studentReducer = (state = studentInitial, action: ActionTypes) => {
 
     
         case "SEARCH":
-        {            
-            const studentClones = [...state]
-            if (action.payload.name){
-
-                const searctStudent =  studentClones.filter((student) => 
+        {
+            // Luôn lọc trên dữ liệu gốc (studentInitial hoặc localStorage)
+            const allStudents = localStorage.getItem('students') ? JSON.parse(localStorage.getItem('students')!) : [];
+            if (action.payload.name) {
+                const searchStudent = allStudents.filter((student: Student) =>
                     (student.name ?? '').toLowerCase().includes((action.payload.name ?? '').toLowerCase())
-                )
-                return searctStudent
+                );
+                return searchStudent;
             } else {
-                
-                return studentInitial
+                return allStudents;
             }
-
         }
 
         case "EDIT":
