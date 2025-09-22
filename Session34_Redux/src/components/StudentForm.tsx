@@ -17,7 +17,8 @@ interface StudentFormProps {
 type InputChangeEvent = React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>;
 type FormChangeEvent = InputChangeEvent | SelectChangeEvent;
 
-import { useAppDispatch } from '../hooks/useRedux';
+import { useAppDispatch, useAppSelector } from '../hooks/useRedux';
+import { useRef } from 'react';
 function StudentForm({ onSubmit, initialStudent }: StudentFormProps) {
   const [errors, setErrors] = React.useState<{
     id?: string;
@@ -26,9 +27,12 @@ function StudentForm({ onSubmit, initialStudent }: StudentFormProps) {
     birthday?: string;
     hometown?: string;
     address?: string;
+    age?: string;
   }>({});
   const dispatch = useAppDispatch();
-  const [form, setForm] = React.useState<Student>(
+  const students = useAppSelector((store) => store.student);
+  const inputIdRef = useRef<HTMLInputElement>(null);
+  const [form, setForm] = React.useState<Student & { age?: number }>(
     initialStudent || {
       id: "",
       name: '',
@@ -36,6 +40,7 @@ function StudentForm({ onSubmit, initialStudent }: StudentFormProps) {
       birthday: '',
       hometown: '',
       address: '',
+      age: undefined,
     }
   );
 
@@ -47,7 +52,11 @@ function StudentForm({ onSubmit, initialStudent }: StudentFormProps) {
 
   const handleChange = (e: FormChangeEvent) => {
     const { name, value } = e.target;
-    setForm({ ...form, [name]: value });
+    if (name === 'age') {
+      setForm({ ...form, age: value === '' ? undefined : Number(value) });
+    } else {
+      setForm({ ...form, [name]: value });
+    }
   };
 
   const handleSubmit = () => {
@@ -58,20 +67,33 @@ function StudentForm({ onSubmit, initialStudent }: StudentFormProps) {
       birthday?: string;
       hometown?: string;
       address?: string;
+      age?: string;
     } = {};
+    // Validate mã sinh viên
     if (!form.id) newErrors.id = 'Vui lòng nhập mã sinh viên';
+    else if (students.some(s => s.id === form.id && (!initialStudent || initialStudent.id !== form.id))) newErrors.id = 'Mã sinh viên đã tồn tại';
+    // Validate tên sinh viên
     if (!form.name) newErrors.name = 'Vui lòng nhập tên sinh viên';
-    if (!form.gender) newErrors.gender = 'Vui lòng chọn giới tính';
+    else if (students.some(s => s.name === form.name && (!initialStudent || initialStudent.name !== form.name))) newErrors.name = 'Tên sinh viên đã tồn tại';
+    // Validate tuổi
+    if (form.age === undefined || form.age === null || form.age === '') newErrors.age = 'Vui lòng nhập tuổi';
+    else if (form.age < 0) newErrors.age = 'Tuổi không được nhỏ hơn 0';
+    // Validate ngày sinh
     if (!form.birthday) newErrors.birthday = 'Vui lòng nhập ngày sinh';
+    else if (new Date(form.birthday) > new Date()) newErrors.birthday = 'Ngày sinh không được là ngày trong tương lai';
+    // Validate nơi sinh
     if (!form.hometown) newErrors.hometown = 'Vui lòng nhập nơi sinh';
+    // Validate địa chỉ
     if (!form.address) newErrors.address = 'Vui lòng nhập địa chỉ';
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
+    // Thêm hoặc sửa
+    const submitData = { ...form };
     if (onSubmit) {
-      onSubmit(form);
+      onSubmit(submitData);
       // Không reset form khi sửa
     } else {
-      dispatch({ type: "ADD", payload: form });
+      dispatch({ type: "ADD", payload: submitData });
       setForm({
         id: "",
         name: '',
@@ -79,7 +101,10 @@ function StudentForm({ onSubmit, initialStudent }: StudentFormProps) {
         birthday: '',
         hometown: '',
         address: '',
+        age: undefined,
       });
+      // Focus vào input mã sinh viên
+      if (inputIdRef.current) inputIdRef.current.focus();
     }
     setErrors({});
   };
@@ -96,6 +121,7 @@ function StudentForm({ onSubmit, initialStudent }: StudentFormProps) {
           fullWidth
           error={!!errors.id}
           helperText={errors.id}
+          inputRef={inputIdRef}
         />
         <TextField
           label="Tên sinh viên"
@@ -105,6 +131,16 @@ function StudentForm({ onSubmit, initialStudent }: StudentFormProps) {
           fullWidth
           error={!!errors.name}
           helperText={errors.name}
+        />
+        <TextField
+          label="Tuổi"
+          name="age"
+          type="number"
+          value={form.age ?? ''}
+          onChange={handleChange}
+          fullWidth
+          error={!!errors.age}
+          helperText={errors.age}
         />
         <Select name="gender" value={form.gender} onChange={handleChange} fullWidth error={!!errors.gender}>
           <MenuItem value="Nam">Nam</MenuItem>
